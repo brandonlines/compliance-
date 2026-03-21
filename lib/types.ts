@@ -51,7 +51,7 @@ export interface Evidence {
   fileName?: string;
   originalName?: string;
   mimeType?: string;
-  filePath?: string;
+  fileDataUrl?: string;
 }
 
 export interface Task {

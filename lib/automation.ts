@@ -1,8 +1,5 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
-
 import { applyCheckRunsToStore } from "@/lib/compliance";
-import { createId, uploadsDirectory } from "@/lib/store";
+import { createId } from "@/lib/store";
 import {
   AutomationEvent,
   AutomationEventType,
@@ -90,18 +87,14 @@ function ensureControlExists(store: Store, controlId: string) {
 }
 
 function defaultSourceName(value: string | undefined) {
-  return value?.trim() || "external automation";
+  return value?.trim() || "automation";
 }
 
-function decodeFile(contentBase64: string) {
-  try {
-    return Buffer.from(contentBase64, "base64");
-  } catch {
-    return null;
-  }
+function normalizeBase64(contentBase64: string) {
+  return contentBase64.replace(/^data:[^;]+;base64,/, "").trim();
 }
 
-async function handleEvidenceCreate(store: Store, payload: EvidenceCreatePayload, receivedAt: string): Promise<IngestResult> {
+function handleEvidenceCreate(store: Store, payload: EvidenceCreatePayload, receivedAt: string): IngestResult {
   if (!payload.title || !payload.owner || !payload.controlId) {
     const rejected = addAutomationEvent(
       store,
@@ -138,39 +131,17 @@ async function handleEvidenceCreate(store: Store, payload: EvidenceCreatePayload
     };
   }
 
-  let filePath: string | undefined;
   let fileName: string | undefined;
   let originalName: string | undefined;
   let mimeType: string | undefined;
+  let fileDataUrl: string | undefined;
   let kind: "upload" | "snapshot" = "snapshot";
 
   if (payload.fileName && payload.contentBase64) {
-    const decoded = decodeFile(payload.contentBase64);
-
-    if (!decoded) {
-      const rejected = addAutomationEvent(
-        store,
-        payload.type,
-        "rejected",
-        defaultSourceName(payload.sourceName),
-        "Evidence payload included invalid base64 content.",
-        receivedAt
-      );
-
-      return {
-        ok: false,
-        status: 400,
-        summary: "Invalid base64 file content.",
-        store: rejected
-      };
-    }
-
-    await mkdir(uploadsDirectory, { recursive: true });
-    fileName = `${Date.now()}-${payload.fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-    filePath = path.join(uploadsDirectory, fileName);
+    fileName = payload.fileName.replace(/[^a-zA-Z0-9._-]/g, "_");
     originalName = payload.fileName;
     mimeType = payload.mimeType || "application/octet-stream";
-    await writeFile(filePath, decoded);
+    fileDataUrl = `data:${mimeType};base64,${normalizeBase64(payload.contentBase64)}`;
     kind = "upload";
   }
 
@@ -188,10 +159,10 @@ async function handleEvidenceCreate(store: Store, payload: EvidenceCreatePayload
           controlId: payload.controlId,
           policyId: payload.policyId,
           uploadedAt: payload.uploadedAt ?? receivedAt,
-          filePath,
           fileName,
           originalName,
-          mimeType
+          mimeType,
+          fileDataUrl
         },
         ...store.evidence
       ]
@@ -336,7 +307,7 @@ function handleTaskCreate(store: Store, payload: TaskCreatePayload, receivedAt: 
   };
 }
 
-export async function ingestAutomationPayload(store: Store, payload: AutomationPayload): Promise<IngestResult> {
+export function ingestAutomationPayload(store: Store, payload: AutomationPayload): IngestResult {
   const receivedAt = new Date().toISOString();
 
   if (!store.automation.enabled) {
@@ -345,14 +316,14 @@ export async function ingestAutomationPayload(store: Store, payload: AutomationP
       payload.type,
       "rejected",
       defaultSourceName(payload.sourceName),
-      "Automation webhook is disabled.",
+      "Automation intake is disabled.",
       receivedAt
     );
 
     return {
       ok: false,
       status: 409,
-      summary: "Automation integration is disabled.",
+      summary: "Automation intake is disabled.",
       store: rejected
     };
   }

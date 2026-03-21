@@ -1,13 +1,12 @@
-import { runChecksAction } from "@/app/actions";
+"use client";
+
+import { useAppStore } from "@/components/app-provider";
 import { StatusBadge } from "@/components/status-badge";
 import { CHECK_LIBRARY, getLatestRunsByCheck } from "@/lib/compliance";
 import { formatDate } from "@/lib/format";
-import { getStore } from "@/lib/store";
 
-export const dynamic = "force-dynamic";
-
-export default async function ChecksPage() {
-  const store = await getStore();
+export default function ChecksPage() {
+  const { store, runChecks } = useAppStore();
   const latestRuns = getLatestRunsByCheck(store);
   const controlsById = new Map(store.controls.map((control) => [control.id, control]));
   const history = [...store.checkRuns].sort((left, right) => right.ranAt.localeCompare(left.ranAt)).slice(0, 12);
@@ -20,11 +19,9 @@ export default async function ChecksPage() {
           <h2 className="page-title">Continuous monitoring lite</h2>
           <p className="muted">A small check engine that still gives the team useful compliance signals.</p>
         </div>
-        <form action={runChecksAction}>
-          <button type="submit" className="button">
-            Run all checks
-          </button>
-        </form>
+        <button type="button" className="button" onClick={runChecks}>
+          Run all checks
+        </button>
       </header>
 
       <section className="grid-3">

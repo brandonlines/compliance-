@@ -1,6 +1,8 @@
+"use client";
+
 import Link from "next/link";
 
-import { runChecksAction } from "@/app/actions";
+import { useAppStore } from "@/components/app-provider";
 import { MetricCard } from "@/components/metric-card";
 import { StatusBadge } from "@/components/status-badge";
 import {
@@ -10,12 +12,9 @@ import {
   getPolicyStatus
 } from "@/lib/compliance";
 import { formatDate } from "@/lib/format";
-import { getStore } from "@/lib/store";
 
-export const dynamic = "force-dynamic";
-
-export default async function DashboardPage() {
-  const store = await getStore();
+export default function DashboardPage() {
+  const { store, runChecks } = useAppStore();
   const metrics = getDashboardMetrics(store);
   const latestRuns = [...getLatestRunsByCheck(store).values()]
     .sort((left, right) => right.ranAt.localeCompare(left.ranAt))
@@ -33,23 +32,21 @@ export default async function DashboardPage() {
     <>
       <section className="hero">
         <div className="hero-card">
-          <p className="eyebrow">SOC 2 operating system</p>
-          <h2>Smaller than Vanta, but enough to run the program.</h2>
+          <p className="eyebrow">SOC 2 workspace</p>
+          <h2>Portable compliance operations in a single browser-based app.</h2>
           <p className="muted">
-            Track controls, keep evidence fresh, run lightweight checks, and hand auditors a clean packet without
-            dragging a full GRC suite into a small team.
+            Track controls, keep evidence fresh, run lightweight checks, and package the program for audit review with
+            no backend dependency.
           </p>
           <div className="hero-meta">
             <StatusBadge tone="monitoring" label={store.organization.framework} />
             <StatusBadge tone="ready" label={store.organization.auditWindow} />
-            <StatusBadge tone="ready" label="Single tenant" />
+            <StatusBadge tone="ready" label="Static export ready" />
           </div>
           <div className="hero-actions">
-            <form action={runChecksAction}>
-              <button type="submit" className="button">
-                Run compliance checks
-              </button>
-            </form>
+            <button type="button" className="button" onClick={runChecks}>
+              Run compliance checks
+            </button>
             <Link href="/auditor" className="button-ghost">
               Open auditor packet
             </Link>
@@ -71,14 +68,15 @@ export default async function DashboardPage() {
               <p className="muted">{store.organization.industry}</p>
             </div>
             <div className="item-card">
-              <p className="eyebrow">What this app covers</p>
+              <p className="eyebrow">What this demo covers</p>
               <p className="muted">
-                Controls, evidence, policies, integration posture, remediation tasks, and an exportable audit packet.
+                Controls, evidence, policies, integration posture, remediation tasks, automation events, and an audit
+                packet export.
               </p>
             </div>
             <div className="item-card">
-              <p className="eyebrow">Automation ready</p>
-              <p className="muted">Use the webhook hub to push evidence, checks, and tasks from external workflows.</p>
+              <p className="eyebrow">Persistence</p>
+              <p className="muted">Your changes are stored in this browser, so local dev and static hosting behave the same.</p>
             </div>
           </div>
         </aside>

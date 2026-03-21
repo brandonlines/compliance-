@@ -1,10 +1,11 @@
-import { createTaskAction, updateTaskStatusAction } from "@/app/actions";
+"use client";
+
+import { FormEvent } from "react";
+
+import { useAppStore } from "@/components/app-provider";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDate } from "@/lib/format";
-import { getStore } from "@/lib/store";
 import { TaskStatus } from "@/lib/types";
-
-export const dynamic = "force-dynamic";
 
 const taskStatusOrder: Record<TaskStatus, number> = {
   open: 0,
@@ -12,8 +13,8 @@ const taskStatusOrder: Record<TaskStatus, number> = {
   done: 2
 };
 
-export default async function TasksPage() {
-  const store = await getStore();
+export default function TasksPage() {
+  const { store, createTask, updateTaskStatus } = useAppStore();
   const tasks = [...store.tasks].sort((left, right) => {
     const statusDelta = taskStatusOrder[left.status] - taskStatusOrder[right.status];
 
@@ -23,6 +24,26 @@ export default async function TasksPage() {
 
     return left.dueDate.localeCompare(right.dueDate);
   });
+
+  function handleCreateTask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    createTask({
+      title: String(data.get("title") ?? "").trim(),
+      description: String(data.get("description") ?? "").trim(),
+      owner: String(data.get("owner") ?? "").trim(),
+      dueDate: String(data.get("dueDate") ?? "").trim(),
+      priority: (String(data.get("priority") ?? "medium") as "high" | "medium" | "low")
+    });
+    form.reset();
+  }
+
+  function handleUpdateTask(taskId: string, event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    updateTaskStatus(taskId, String(data.get("status") ?? "open") as TaskStatus);
+  }
 
   return (
     <section className="stack">
@@ -39,7 +60,7 @@ export default async function TasksPage() {
             <h3>Create a manual follow-up</h3>
           </div>
         </div>
-        <form action={createTaskAction} className="form-grid">
+        <form onSubmit={handleCreateTask} className="form-grid">
           <div className="field">
             <label htmlFor="title">Title</label>
             <input id="title" name="title" placeholder="Collect latest penetration test letter" required />
@@ -102,8 +123,7 @@ export default async function TasksPage() {
                 </td>
                 <td>{task.sourceType}</td>
                 <td>
-                  <form action={updateTaskStatusAction} className="inline-actions">
-                    <input type="hidden" name="taskId" value={task.id} />
+                  <form onSubmit={(event) => handleUpdateTask(task.id, event)} className="inline-actions">
                     <select name="status" defaultValue={task.status}>
                       <option value="open">Open</option>
                       <option value="in_progress">In progress</option>

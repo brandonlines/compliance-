@@ -1,95 +1,91 @@
-import { rotateAutomationSecretAction, updateAutomationSettingsAction } from "@/app/actions";
+"use client";
+
+import { FormEvent, useMemo, useState } from "react";
+
+import { useAppStore } from "@/components/app-provider";
 import { StatusBadge } from "@/components/status-badge";
+import { AutomationPayload } from "@/lib/automation";
 import { formatDate } from "@/lib/format";
-import { getStore } from "@/lib/store";
 
-export const dynamic = "force-dynamic";
-
-function evidenceExample(secret: string) {
-  return `curl -X POST https://your-trustops-host/api/automation \\
-  -H "Content-Type: application/json" \\
-  -H "x-trustops-key: ${secret}" \\
-  -d '{
-    "type": "evidence.create",
-    "sourceName": "n8n",
-    "title": "Quarterly access review export",
-    "description": "Uploaded automatically after review completion.",
-    "owner": "IT & Security",
-    "controlId": "control_access",
-    "policyId": "policy_access"
-  }'`;
+function buildExamplePayloads(secret: string) {
+  return {
+    evidence: {
+      type: "evidence.create",
+      sourceName: "n8n",
+      secret,
+      title: "Quarterly access review export",
+      description: "Uploaded automatically after review completion.",
+      owner: "IT & Security",
+      controlId: "control_access",
+      policyId: "policy_access"
+    },
+    check: {
+      type: "check.report",
+      sourceName: "GitHub Actions",
+      secret,
+      checkId: "gha_branch_protection",
+      title: "Branch protection policy check",
+      status: "pass",
+      summary: "All tracked repos require approvals and protected branches.",
+      severity: "high",
+      controlIds: ["control_change"]
+    },
+    task: {
+      type: "task.create",
+      sourceName: "Zapier",
+      secret,
+      title: "Collect new employee training record",
+      owner: "People Ops",
+      dueDate: "2026-03-28",
+      priority: "medium"
+    }
+  };
 }
 
-function checkExample(secret: string) {
-  return `curl -X POST https://your-trustops-host/api/automation \\
-  -H "Content-Type: application/json" \\
-  -H "x-trustops-key: ${secret}" \\
-  -d '{
-    "type": "check.report",
-    "sourceName": "GitHub Actions",
-    "checkId": "gha_branch_protection",
-    "title": "GitHub Actions branch protection check",
-    "status": "pass",
-    "summary": "All tracked repos require approvals and protected branches.",
-    "severity": "high",
-    "controlIds": ["control_change"]
-  }'`;
-}
-
-function taskExample(secret: string) {
-  return `curl -X POST https://your-trustops-host/api/automation \\
-  -H "Content-Type: application/json" \\
-  -H "x-trustops-key: ${secret}" \\
-  -d '{
-    "type": "task.create",
-    "sourceName": "Zapier",
-    "title": "Collect new employee security training record",
-    "owner": "People Ops",
-    "dueDate": "2026-03-28",
-    "priority": "medium"
-  }'`;
-}
-
-function githubActionExample(secret: string) {
-  return `name: trust-ops-branch-check
-
-on:
-  workflow_dispatch:
-
-jobs:
-  report:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Report branch protection status
-        run: |
-          curl -X POST https://your-trustops-host/api/automation \\
-            -H "Content-Type: application/json" \\
-            -H "x-trustops-key: ${secret}" \\
-            -d '{
-              "type": "check.report",
-              "sourceName": "GitHub Actions",
-              "checkId": "gha_branch_protection",
-              "title": "GitHub Actions branch protection check",
-              "status": "pass",
-              "summary": "Protected branches are enforced.",
-              "severity": "high",
-              "controlIds": ["control_change"]
-            }'`;
-}
-
-export default async function AutomationPage() {
-  const store = await getStore();
+export default function AutomationPage() {
+  const { store, rotateAutomationSecret, updateAutomationEnabled, applyAutomationPayload, resetDemo } = useAppStore();
+  const [payloadInput, setPayloadInput] = useState("");
+  const [resultMessage, setResultMessage] = useState<string | null>(null);
+  const [resultTone, setResultTone] = useState<"ready" | "attention">("ready");
   const events = [...store.automation.events].sort((left, right) => right.receivedAt.localeCompare(left.receivedAt));
+  const examples = useMemo(() => buildExamplePayloads(store.automation.secret), [store.automation.secret]);
+
+  function loadExample(key: keyof typeof examples) {
+    setPayloadInput(JSON.stringify(examples[key], null, 2));
+    setResultMessage(null);
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    try {
+      const parsed = JSON.parse(payloadInput) as AutomationPayload & { secret?: string };
+
+      if (parsed.secret && parsed.secret !== store.automation.secret) {
+        setResultTone("attention");
+        setResultMessage("The example secret does not match the current automation token.");
+        return;
+      }
+
+      const { secret, ...payload } = parsed;
+      const result = applyAutomationPayload(payload as AutomationPayload);
+      setResultTone(result.ok ? "ready" : "attention");
+      setResultMessage(result.summary);
+    } catch {
+      setResultTone("attention");
+      setResultMessage("Payload must be valid JSON.");
+    }
+  }
 
   return (
     <section className="stack">
       <header className="split">
         <div>
           <p className="eyebrow">Automation</p>
-          <h2 className="page-title">Webhook automation hub</h2>
+          <h2 className="page-title">Automation studio</h2>
           <p className="muted">
-            Let GitHub Actions, Zapier, n8n, cron jobs, and internal scripts push evidence, check results, and tasks
-            straight into the compliance workspace.
+            This static build simulates inbound automation locally in the browser, so the exported site behaves the same
+            way as local dev.
           </p>
         </div>
         <div className="pill-row">
@@ -103,9 +99,9 @@ export default async function AutomationPage() {
 
       <section className="grid-3">
         <article className="panel">
-          <p className="eyebrow">Endpoint</p>
-          <h3 className="mono">POST /api/automation</h3>
-          <p className="muted">Use `x-trustops-key` or a Bearer token for authentication.</p>
+          <p className="eyebrow">Mode</p>
+          <h3>Browser-local event intake</h3>
+          <p className="muted">Paste JSON payloads below to simulate automations without relying on a backend route.</p>
           <div className="detail-row">
             <span>Last event {formatDate(store.automation.lastEventAt)}</span>
           </div>
@@ -113,54 +109,64 @@ export default async function AutomationPage() {
         <article className="panel">
           <p className="eyebrow">Secret</p>
           <h3 className="mono">{store.automation.secret}</h3>
-          <p className="muted">Rotate this if it leaks or when you move from local to hosted usage.</p>
-          <form action={rotateAutomationSecretAction} className="section-gap">
-            <button type="submit" className="button">
-              Rotate secret
-            </button>
-          </form>
+          <p className="muted">The examples below include this token so you can mirror a signed integration flow.</p>
+          <button type="button" className="button section-gap" onClick={rotateAutomationSecret}>
+            Rotate secret
+          </button>
         </article>
         <article className="panel">
           <p className="eyebrow">Status</p>
           <h3>{store.automation.enabled ? "Automation is live" : "Automation is paused"}</h3>
-          <p className="muted">Disable the endpoint without deleting the secret or existing event history.</p>
-          <form action={updateAutomationSettingsAction} className="section-gap">
-            <label className="checkbox-row" htmlFor="enabled">
-              <input id="enabled" name="enabled" type="checkbox" defaultChecked={store.automation.enabled} />
-              <span>Accept automation events</span>
-            </label>
-            <button type="submit" className="button section-gap">
-              Save status
-            </button>
-          </form>
+          <p className="muted">Pause intake without removing the current secret or event history.</p>
+          <label className="checkbox-row section-gap" htmlFor="enabled">
+            <input
+              id="enabled"
+              name="enabled"
+              type="checkbox"
+              checked={store.automation.enabled}
+              onChange={(event) => updateAutomationEnabled(event.currentTarget.checked)}
+            />
+            <span>Accept automation events</span>
+          </label>
         </article>
       </section>
 
-      <section className="grid-2">
+      <section className="grid-3">
         <article className="panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Supported event</p>
+              <p className="eyebrow">Example payload</p>
               <h3>Create evidence</h3>
             </div>
+            <button type="button" className="button-ghost" onClick={() => loadExample("evidence")}>
+              Load example
+            </button>
           </div>
-          <p className="muted">
-            Ideal for pushing review exports, screenshots, policy artifacts, or completion reports from automation tools.
-          </p>
-          <pre className="code-block">{evidenceExample(store.automation.secret)}</pre>
+          <pre className="code-block">{JSON.stringify(examples.evidence, null, 2)}</pre>
         </article>
-
         <article className="panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Supported event</p>
+              <p className="eyebrow">Example payload</p>
               <h3>Report a check result</h3>
             </div>
+            <button type="button" className="button-ghost" onClick={() => loadExample("check")}>
+              Load example
+            </button>
           </div>
-          <p className="muted">
-            External checks create or resolve remediation work through the same check engine the internal app uses.
-          </p>
-          <pre className="code-block">{checkExample(store.automation.secret)}</pre>
+          <pre className="code-block">{JSON.stringify(examples.check, null, 2)}</pre>
+        </article>
+        <article className="panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Example payload</p>
+              <h3>Create a task</h3>
+            </div>
+            <button type="button" className="button-ghost" onClick={() => loadExample("task")}>
+              Load example
+            </button>
+          </div>
+          <pre className="code-block">{JSON.stringify(examples.task, null, 2)}</pre>
         </article>
       </section>
 
@@ -168,23 +174,55 @@ export default async function AutomationPage() {
         <article className="panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Supported event</p>
-              <h3>Create a task</h3>
+              <p className="eyebrow">Simulator</p>
+              <h3>Apply an automation payload</h3>
             </div>
           </div>
-          <p className="muted">Useful when a workflow finds an issue that needs a human owner and due date.</p>
-          <pre className="code-block">{taskExample(store.automation.secret)}</pre>
+          <form onSubmit={handleSubmit} className="stack">
+            <div className="field">
+              <label htmlFor="payloadInput">JSON payload</label>
+              <textarea
+                id="payloadInput"
+                value={payloadInput}
+                onChange={(event) => setPayloadInput(event.currentTarget.value)}
+                placeholder='{"type":"check.report", ...}'
+              />
+            </div>
+            <div className="inline-actions">
+              <button type="submit" className="button">
+                Apply payload
+              </button>
+              <button type="button" className="button-ghost" onClick={resetDemo}>
+                Reset demo data
+              </button>
+            </div>
+            {resultMessage ? (
+              <div className="subtle-card">
+                <StatusBadge tone={resultTone} label={resultTone === "ready" ? "accepted" : "error"} />
+                <p className="muted section-gap">{resultMessage}</p>
+              </div>
+            ) : null}
+          </form>
         </article>
 
         <article className="panel">
           <div className="panel-header">
             <div>
-              <p className="eyebrow">Example workflow</p>
-              <h3>GitHub Actions snippet</h3>
+              <p className="eyebrow">How to use it</p>
+              <h3>Static-site workflow</h3>
             </div>
           </div>
-          <p className="muted">A lightweight pattern for CI-driven compliance checks without full OAuth plumbing.</p>
-          <pre className="code-block">{githubActionExample(store.automation.secret)}</pre>
+          <div className="list">
+            <div className="item-card">
+              <p className="muted">1. Load one of the example payloads or paste your own JSON into the simulator.</p>
+            </div>
+            <div className="item-card">
+              <p className="muted">2. Apply the payload and watch evidence, checks, tasks, and the event log update instantly.</p>
+            </div>
+            <div className="item-card">
+              <p className="muted">3. Refresh the page to confirm the browser-persisted state survives without a backend.</p>
+            </div>
+          </div>
         </article>
       </section>
 

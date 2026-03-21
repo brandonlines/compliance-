@@ -1,16 +1,31 @@
+"use client";
+
+import { FormEvent } from "react";
 import Link from "next/link";
 
-import { uploadEvidenceAction } from "@/app/actions";
+import { useAppStore } from "@/components/app-provider";
 import { formatDate } from "@/lib/format";
-import { getStore } from "@/lib/store";
 
-export const dynamic = "force-dynamic";
-
-export default async function EvidencePage() {
-  const store = await getStore();
+export default function EvidencePage() {
+  const { store, uploadEvidence } = useAppStore();
   const controlsById = new Map(store.controls.map((control) => [control.id, control]));
   const policies = [...store.policies].sort((left, right) => left.title.localeCompare(right.title));
   const evidence = [...store.evidence].sort((left, right) => right.uploadedAt.localeCompare(left.uploadedAt));
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    await uploadEvidence({
+      title: String(data.get("title") ?? "").trim(),
+      description: String(data.get("description") ?? "").trim(),
+      owner: String(data.get("owner") ?? "").trim(),
+      controlId: String(data.get("controlId") ?? "").trim(),
+      policyId: String(data.get("policyId") ?? "").trim(),
+      file: data.get("file") instanceof File ? (data.get("file") as File) : null
+    });
+    form.reset();
+  }
 
   return (
     <section className="stack">
@@ -26,9 +41,9 @@ export default async function EvidencePage() {
             <p className="eyebrow">Add evidence</p>
             <h3>Store a new artifact</h3>
           </div>
-          <p className="caption">Files are stored locally in the workspace under data/uploads.</p>
+          <p className="caption">Uploads stay in this browser so the exported site works like local dev.</p>
         </div>
-        <form action={uploadEvidenceAction} className="form-grid">
+        <form onSubmit={handleSubmit} className="form-grid">
           <div className="field">
             <label htmlFor="title">Title</label>
             <input id="title" name="title" placeholder="Quarterly access review export" required />
@@ -119,8 +134,8 @@ export default async function EvidencePage() {
                   <td>{item.source}</td>
                   <td>{formatDate(item.uploadedAt)}</td>
                   <td>
-                    {item.fileName ? (
-                      <a href={`/api/evidence/${item.id}`} className="button-ghost">
+                    {item.fileDataUrl ? (
+                      <a href={item.fileDataUrl} download={item.originalName ?? item.fileName} className="button-ghost">
                         Open file
                       </a>
                     ) : (

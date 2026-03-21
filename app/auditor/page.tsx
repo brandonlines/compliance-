@@ -1,14 +1,15 @@
+"use client";
+
 import Link from "next/link";
 
+import { useAppStore } from "@/components/app-provider";
 import { StatusBadge } from "@/components/status-badge";
+import { downloadTextFile } from "@/lib/browser";
 import { buildAuditorPacket } from "@/lib/compliance";
 import { formatDate } from "@/lib/format";
-import { getStore } from "@/lib/store";
 
-export const dynamic = "force-dynamic";
-
-export default async function AuditorPage() {
-  const store = await getStore();
+export default function AuditorPage() {
+  const { store } = useAppStore();
   const packet = buildAuditorPacket(store);
 
   return (
@@ -19,9 +20,13 @@ export default async function AuditorPage() {
           <h2 className="page-title">One place to hand over the program</h2>
           <p className="muted">A clean summary of current controls, evidence, policies, checks, and open items.</p>
         </div>
-        <a href="/api/auditor-packet" className="button">
+        <button
+          type="button"
+          className="button"
+          onClick={() => downloadTextFile("auditor-packet.json", JSON.stringify(packet, null, 2))}
+        >
           Download JSON packet
-        </a>
+        </button>
       </header>
 
       <section className="grid-4">

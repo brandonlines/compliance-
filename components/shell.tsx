@@ -18,10 +18,10 @@ export function Shell({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-block">
-          <p className="kicker">Mathville Trust Ops</p>
-          <h1>Homemade compliance command center</h1>
+          <p className="kicker">Trust Console</p>
+          <h1>Portable compliance workspace</h1>
           <p className="muted">
-            A lean internal system for SOC 2 tracking, evidence collection, and audit readiness.
+            A browser-persisted compliance demo for controls, evidence, automation signals, and audit readiness.
           </p>
         </div>
         <nav className="nav-list" aria-label="Main navigation">

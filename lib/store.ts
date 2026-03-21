@@ -1,73 +1,87 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
-import path from "node:path";
-
 import { buildSeedStore } from "@/data/seed";
 import { Store } from "@/lib/types";
 
-const dataDirectory = path.join(process.cwd(), "data");
-const storePath = path.join(dataDirectory, "store.json");
-const uploadsDirectory = path.join(dataDirectory, "uploads");
+const STORAGE_KEY = "trust-console-store-v1";
 
-async function ensureStore() {
-  await mkdir(uploadsDirectory, { recursive: true });
+function fallbackId() {
+  return Math.random().toString(36).slice(2, 10);
+}
 
-  try {
-    await readFile(storePath, "utf8");
-  } catch {
-    const seed = buildSeedStore();
-    await writeFile(storePath, JSON.stringify(seed, null, 2), "utf8");
+function randomValue() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID().replaceAll("-", "");
   }
-}
 
-function normalizeStore(input: Store): Store {
-  const defaults = buildSeedStore();
-
-  return {
-    ...input,
-    evidence: input.evidence.map((item) => ({
-      ...item,
-      source: item.source ?? "manual"
-    })),
-    tasks: input.tasks.map((task) => ({
-      ...task,
-      sourceType: task.sourceType ?? "manual"
-    })),
-    checkRuns: (input.checkRuns ?? []).map((run) => ({
-      ...run,
-      source: run.source ?? "internal"
-    })),
-    automation: input.automation ?? defaults.automation
-  };
-}
-
-export async function getStore() {
-  await ensureStore();
-  const raw = await readFile(storePath, "utf8");
-  const parsed = JSON.parse(raw) as Store;
-
-  return normalizeStore(parsed);
-}
-
-export async function saveStore(store: Store) {
-  await ensureStore();
-  await writeFile(storePath, JSON.stringify(store, null, 2), "utf8");
-}
-
-export async function updateStore(mutator: (store: Store) => Store | Promise<Store>) {
-  const current = await getStore();
-  const updated = await mutator(current);
-  await saveStore(updated);
-
-  return updated;
+  return `${fallbackId()}${fallbackId()}`;
 }
 
 export function createId(prefix: string) {
-  return `${prefix}_${randomUUID().slice(0, 8)}`;
+  return `${prefix}_${randomValue().slice(0, 8)}`;
 }
 
 export function createAutomationSecret() {
-  return `mto_${randomUUID().replaceAll("-", "")}`;
+  return `trust_${randomValue()}`;
 }
 
-export { storePath, uploadsDirectory };
+export function normalizeStore(input: Store | null | undefined) {
+  const defaults = buildSeedStore();
+
+  if (!input) {
+    return defaults;
+  }
+
+  return {
+    ...defaults,
+    ...input,
+    organization: {
+      ...defaults.organization,
+      ...input.organization
+    },
+    controls: input.controls ?? defaults.controls,
+    policies: input.policies ?? defaults.policies,
+    evidence: (input.evidence ?? defaults.evidence).map((item) => ({
+      ...item,
+      source: item.source ?? "manual"
+    })),
+    tasks: (input.tasks ?? defaults.tasks).map((task) => ({
+      ...task,
+      sourceType: task.sourceType ?? "manual"
+    })),
+    integrations: input.integrations ?? defaults.integrations,
+    checkRuns: (input.checkRuns ?? defaults.checkRuns).map((run) => ({
+      ...run,
+      source: run.source ?? "internal"
+    })),
+    automation: {
+      ...defaults.automation,
+      ...input.automation,
+      events: input.automation?.events ?? defaults.automation.events
+    }
+  };
+}
+
+export function readStoredStore() {
+  if (typeof window === "undefined") {
+    return buildSeedStore();
+  }
+
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+
+    if (!raw) {
+      return buildSeedStore();
+    }
+
+    return normalizeStore(JSON.parse(raw) as Store);
+  } catch {
+    return buildSeedStore();
+  }
+}
+
+export function writeStoredStore(store: Store) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+}

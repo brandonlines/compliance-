@@ -1,14 +1,25 @@
-import { reviewPolicyAction } from "@/app/actions";
+"use client";
+
+import { FormEvent } from "react";
+
+import { useAppStore } from "@/components/app-provider";
 import { StatusBadge } from "@/components/status-badge";
 import { getPolicyStatus } from "@/lib/compliance";
 import { formatDate } from "@/lib/format";
-import { getStore } from "@/lib/store";
 
-export const dynamic = "force-dynamic";
-
-export default async function PoliciesPage() {
-  const store = await getStore();
+export default function PoliciesPage() {
+  const { store, reviewPolicy } = useAppStore();
   const policies = [...store.policies].sort((left, right) => left.nextReviewDue.localeCompare(right.nextReviewDue));
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const policyId = String(data.get("policyId") ?? "");
+    const reviewDate = String(data.get("reviewDate") ?? "").trim() || new Date().toISOString().slice(0, 10);
+    reviewPolicy(policyId, reviewDate);
+    form.reset();
+  }
 
   return (
     <section className="stack">
@@ -34,11 +45,11 @@ export default async function PoliciesPage() {
               <span>Last reviewed {formatDate(policy.lastReviewed)}</span>
               <span>Due {formatDate(policy.nextReviewDue)}</span>
             </div>
-            <form action={reviewPolicyAction} className="form-grid section-gap">
+            <form onSubmit={handleSubmit} className="form-grid section-gap">
               <input type="hidden" name="policyId" value={policy.id} />
               <div className="field">
                 <label htmlFor={`reviewDate-${policy.id}`}>Review date</label>
-                <input id={`reviewDate-${policy.id}`} type="date" name="reviewDate" defaultValue={new Date().toISOString().slice(0, 10)} />
+                <input id={`reviewDate-${policy.id}`} type="date" name="reviewDate" />
               </div>
               <div className="inline-actions" style={{ alignItems: "flex-end" }}>
                 <button type="submit" className="button">

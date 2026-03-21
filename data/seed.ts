@@ -1,20 +1,17 @@
-import { randomUUID } from "node:crypto";
-
 import { Store } from "@/lib/types";
 
 export function buildSeedStore(): Store {
   const now = "2026-03-20T09:00:00.000Z";
-  const automationSecret = `mto_${randomUUID().replaceAll("-", "")}`;
 
   return {
     organization: {
-      id: "org_mathville",
-      name: "Mathville",
-      owner: "Brandon Lines",
-      industry: "EdTech SaaS",
+      id: "org_sample",
+      name: "Sample Company",
+      owner: "Security Lead",
+      industry: "B2B SaaS",
       framework: "SOC 2",
-      auditWindow: "Q2 2026",
-      workspaceMode: "Single-tenant internal compliance workspace"
+      auditWindow: "Audit readiness workspace",
+      workspaceMode: "Static browser demo with local persistence"
     },
     controls: [
       {
@@ -285,7 +282,7 @@ export function buildSeedStore(): Store {
     checkRuns: [],
     automation: {
       enabled: true,
-      secret: automationSecret,
+      secret: "trust_demo_secret",
       lastEventAt: null,
       events: [
         {

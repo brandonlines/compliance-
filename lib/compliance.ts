@@ -406,9 +406,16 @@ export function runAllChecks(store: Store) {
 export function buildAuditorPacket(store: Store) {
   const latestRuns = getLatestRunsByCheck(store);
   const metrics = getDashboardMetrics(store);
+  const timestamps = [
+    store.automation.lastEventAt,
+    ...store.evidence.map((item) => item.uploadedAt),
+    ...store.checkRuns.map((run) => run.ranAt),
+    ...store.tasks.map((task) => task.createdAt)
+  ].filter((value): value is string => Boolean(value));
+  const generatedAt = [...timestamps].sort((left, right) => right.localeCompare(left))[0] ?? "2026-03-20T09:00:00.000Z";
 
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     organization: store.organization,
     summary: metrics,
     controls: store.controls.map((control) => ({

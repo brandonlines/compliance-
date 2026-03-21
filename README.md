@@ -1,6 +1,6 @@
-# Mathville Trust Ops
+# Trust Console
 
-A self-hosted, single-tenant compliance MVP inspired by Vanta for smaller teams.
+A static compliance workspace demo that behaves the same in local dev and in an exported site build.
 
 ## What it includes
 
@@ -11,7 +11,7 @@ A self-hosted, single-tenant compliance MVP inspired by Vanta for smaller teams.
 - Runnable automated checks
 - Remediation task management
 - Auditor packet view and JSON export
-- Signed automation webhook for evidence, checks, and tasks
+- Local automation event simulator for evidence, checks, and tasks
 
 ## Run it
 
@@ -22,17 +22,24 @@ npm run dev
 
 Then open `http://localhost:3000`.
 
+To preview the exported static build:
+
+```bash
+npm run build
+npm run start
+```
+
 ## Assumptions
 
-- Built as an internal tool for one company
-- Uses local JSON persistence instead of a database for easier setup
-- Stores uploaded evidence files under `data/uploads`
+- Built as a portable demo instead of a hosted multi-user app
+- Uses browser localStorage for persistence
+- Stores uploaded evidence files as browser data URLs
 - Seeds the workspace with a sample SOC 2 program on first run
+- Exports to `out/` through `next build`
 
-## Automation webhook
+## Automation simulator
 
-- Endpoint: `POST /api/automation`
-- Auth: `x-trustops-key` header or Bearer token using the secret shown in the Automation page
+- Open the Automation page and paste a JSON payload to simulate inbound automation events
 - Supported events:
   - `evidence.create`
   - `check.report`

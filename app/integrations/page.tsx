@@ -1,26 +1,72 @@
+"use client";
+
+import { FormEvent } from "react";
 import Link from "next/link";
 
-import { saveIntegrationAction } from "@/app/actions";
+import { useAppStore } from "@/components/app-provider";
 import { StatusBadge } from "@/components/status-badge";
 import { getIntegrationHealth } from "@/lib/compliance";
 import { formatDate } from "@/lib/format";
-import { getStore } from "@/lib/store";
 
-export const dynamic = "force-dynamic";
-
-export default async function IntegrationsPage() {
-  const store = await getStore();
+export default function IntegrationsPage() {
+  const { store, saveIntegration } = useAppStore();
   const integrations = [...store.integrations].sort((left, right) => left.name.localeCompare(right.name));
+
+  function handleSubmit(integrationId: string, event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const owner = String(data.get("owner") ?? "").trim();
+    const connected = data.get("connected") === "on";
+
+    if (integrationId === "integration_github") {
+      saveIntegration({
+        integrationId,
+        owner,
+        connected,
+        settings: {
+          branchProtectionEnabled: data.get("branchProtectionEnabled") === "on",
+          requiresApprovals: data.get("requiresApprovals") === "on",
+          repositoryCount: String(data.get("repositoryCount") ?? "0")
+        }
+      });
+      return;
+    }
+
+    if (integrationId === "integration_aws") {
+      saveIntegration({
+        integrationId,
+        owner,
+        connected,
+        settings: {
+          cloudTrailEnabled: data.get("cloudTrailEnabled") === "on",
+          awsConfigEnabled: data.get("awsConfigEnabled") === "on",
+          productionAccounts: String(data.get("productionAccounts") ?? "0")
+        }
+      });
+      return;
+    }
+
+    saveIntegration({
+      integrationId,
+      owner,
+      connected,
+      settings: {
+        mfaRequired: data.get("mfaRequired") === "on",
+        ssoEnabled: data.get("ssoEnabled") === "on",
+        userCount: String(data.get("userCount") ?? "0")
+      }
+    });
+  }
 
   return (
     <section className="stack">
       <header>
         <p className="eyebrow">Integrations</p>
         <h2 className="page-title">Signal sources</h2>
-        <p className="muted">Keep the homemade version intentionally small: identity, source control, and cloud.</p>
+        <p className="muted">Keep the demo intentionally small: identity, source control, and cloud.</p>
         <div className="hero-actions">
           <Link href="/automation" className="button-ghost">
-            Open automation hub
+            Open automation studio
           </Link>
         </div>
       </header>
@@ -41,8 +87,7 @@ export default async function IntegrationsPage() {
               <span>Last sync {formatDate(integration.lastSync)}</span>
             </div>
 
-            <form action={saveIntegrationAction} className="form-grid section-gap">
-              <input type="hidden" name="integrationId" value={integration.id} />
+            <form onSubmit={(event) => handleSubmit(integration.id, event)} className="form-grid section-gap">
               <div className="field">
                 <label htmlFor={`${integration.id}-owner`}>Owner</label>
                 <input id={`${integration.id}-owner`} name="owner" defaultValue={integration.owner} />

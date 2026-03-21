@@ -1,14 +1,14 @@
+"use client";
+
 import Link from "next/link";
 
+import { useAppStore } from "@/components/app-provider";
 import { StatusBadge } from "@/components/status-badge";
 import { getControlStatus, getEvidenceForControl, getLatestRunForControl } from "@/lib/compliance";
 import { formatDate } from "@/lib/format";
-import { getStore } from "@/lib/store";
 
-export const dynamic = "force-dynamic";
-
-export default async function ControlsPage() {
-  const store = await getStore();
+export default function ControlsPage() {
+  const { store } = useAppStore();
   const controls = [...store.controls].sort((left, right) => left.code.localeCompare(right.code));
 
   return (
