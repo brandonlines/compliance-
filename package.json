@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "python3 -m http.server 3000 -d out",
+    "start": "node scripts/serve-pages.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

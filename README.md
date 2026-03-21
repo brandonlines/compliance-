@@ -2,6 +2,8 @@
 
 A static compliance workspace demo that behaves the same in local dev and in an exported site build.
 
+Published site: `https://brandonlines.github.io/compliance-/`
+
 ## What it includes
 
 - SOC 2 control dashboard
@@ -28,6 +30,10 @@ To preview the exported static build:
 npm run build
 npm run start
 ```
+
+Then open `http://localhost:3000/compliance-/`.
+
+GitHub Pages deployment is automated from `main` via `.github/workflows/deploy.yml`.
 
 ## Assumptions
 
