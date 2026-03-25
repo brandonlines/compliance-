@@ -10,7 +10,7 @@ import {
   StoreAction,
   UploadEvidenceInput
 } from "@/lib/store-actions";
-import { AppUser, Store, TaskStatus } from "@/lib/types";
+import { AppUser, Store, TaskStatus, WorkflowTemplateId } from "@/lib/types";
 
 type UploadEvidenceInputWithFile = UploadEvidenceInput & {
   file?: File | null;
@@ -22,10 +22,20 @@ type StoreMutationResponse = {
   summary?: string;
 };
 
+async function getErrorMessage(response: Response, fallback: string) {
+  try {
+    const payload = (await response.json()) as { error?: string };
+    return payload.error?.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 type AppContextValue = {
   currentUser: AppUser;
   store: Store;
   runChecks: () => Promise<void>;
+  runWorkflow: (templateId: WorkflowTemplateId) => Promise<{ ok: boolean; summary: string }>;
   uploadEvidence: (input: UploadEvidenceInputWithFile) => Promise<void>;
   reviewPolicy: (policyId: string, reviewDate: string) => Promise<void>;
   saveIntegration: (input: SaveIntegrationInput) => Promise<void>;
@@ -49,7 +59,7 @@ async function submitStoreAction(action: StoreAction) {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to update workspace state.");
+    throw new Error(await getErrorMessage(response, "Failed to update workspace state."));
   }
 
   return (await response.json()) as StoreMutationResponse;
@@ -76,7 +86,7 @@ async function submitEvidence(input: UploadEvidenceInputWithFile) {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to upload evidence.");
+    throw new Error(await getErrorMessage(response, "Failed to upload evidence."));
   }
 
   return (await response.json()) as StoreMutationResponse;
@@ -109,6 +119,22 @@ export function AppProvider({
         startTransition(() => {
           setStore(normalizeStore(result.store));
         });
+      },
+      async runWorkflow(templateId) {
+        const result = await submitStoreAction({
+          type: "runWorkflow",
+          templateId,
+          actorName: currentUser.name
+        } satisfies StoreAction);
+
+        startTransition(() => {
+          setStore(normalizeStore(result.store));
+        });
+
+        return {
+          ok: result.ok ?? true,
+          summary: result.summary ?? "Workflow completed."
+        };
       },
       async uploadEvidence(input) {
         const result = await submitEvidence(input);

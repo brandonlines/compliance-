@@ -294,6 +294,7 @@ export function buildSeedStore(): Store {
           receivedAt: now
         }
       ]
-    }
+    },
+    workflowRuns: []
   };
 }

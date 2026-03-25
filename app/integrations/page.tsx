@@ -3,13 +3,15 @@
 import { FormEvent } from "react";
 import Link from "next/link";
 
+import { AccessNote } from "@/components/access-note";
 import { useAppStore } from "@/components/app-provider";
 import { StatusBadge } from "@/components/status-badge";
 import { getIntegrationHealth } from "@/lib/compliance";
 import { formatDate } from "@/lib/format";
 
 export default function IntegrationsPage() {
-  const { store, saveIntegration } = useAppStore();
+  const { currentUser, store, saveIntegration } = useAppStore();
+  const canManage = currentUser.role === "admin";
   const integrations = [...store.integrations].sort((left, right) => left.name.localeCompare(right.name));
 
   async function handleSubmit(integrationId: string, event: FormEvent<HTMLFormElement>) {
@@ -60,6 +62,8 @@ export default function IntegrationsPage() {
 
   return (
     <section className="stack">
+      {!canManage ? <AccessNote /> : null}
+
       <header>
         <p className="eyebrow">Integrations</p>
         <h2 className="page-title">Signal sources</h2>
@@ -90,7 +94,7 @@ export default function IntegrationsPage() {
             <form onSubmit={(event) => handleSubmit(integration.id, event)} className="form-grid section-gap">
               <div className="field">
                 <label htmlFor={`${integration.id}-owner`}>Owner</label>
-                <input id={`${integration.id}-owner`} name="owner" defaultValue={integration.owner} />
+                <input id={`${integration.id}-owner`} name="owner" defaultValue={integration.owner} disabled={!canManage} />
               </div>
               <div className="field checkbox-row">
                 <input
@@ -98,6 +102,7 @@ export default function IntegrationsPage() {
                   name="connected"
                   type="checkbox"
                   defaultChecked={integration.connected}
+                  disabled={!canManage}
                 />
                 <label htmlFor={`${integration.id}-connected`}>Connected</label>
               </div>
@@ -110,6 +115,7 @@ export default function IntegrationsPage() {
                       name="branchProtectionEnabled"
                       type="checkbox"
                       defaultChecked={integration.settings.branchProtectionEnabled === true}
+                      disabled={!canManage}
                     />
                     <label htmlFor={`${integration.id}-branchProtectionEnabled`}>Branch protection enabled</label>
                   </div>
@@ -119,6 +125,7 @@ export default function IntegrationsPage() {
                       name="requiresApprovals"
                       type="checkbox"
                       defaultChecked={integration.settings.requiresApprovals === true}
+                      disabled={!canManage}
                     />
                     <label htmlFor={`${integration.id}-requiresApprovals`}>Approvals required</label>
                   </div>
@@ -128,6 +135,7 @@ export default function IntegrationsPage() {
                       id={`${integration.id}-repositoryCount`}
                       name="repositoryCount"
                       defaultValue={String(integration.settings.repositoryCount ?? "")}
+                      disabled={!canManage}
                     />
                   </div>
                 </>
@@ -141,6 +149,7 @@ export default function IntegrationsPage() {
                       name="cloudTrailEnabled"
                       type="checkbox"
                       defaultChecked={integration.settings.cloudTrailEnabled === true}
+                      disabled={!canManage}
                     />
                     <label htmlFor={`${integration.id}-cloudTrailEnabled`}>CloudTrail enabled</label>
                   </div>
@@ -150,6 +159,7 @@ export default function IntegrationsPage() {
                       name="awsConfigEnabled"
                       type="checkbox"
                       defaultChecked={integration.settings.awsConfigEnabled === true}
+                      disabled={!canManage}
                     />
                     <label htmlFor={`${integration.id}-awsConfigEnabled`}>AWS Config enabled</label>
                   </div>
@@ -159,6 +169,7 @@ export default function IntegrationsPage() {
                       id={`${integration.id}-productionAccounts`}
                       name="productionAccounts"
                       defaultValue={String(integration.settings.productionAccounts ?? "")}
+                      disabled={!canManage}
                     />
                   </div>
                 </>
@@ -172,6 +183,7 @@ export default function IntegrationsPage() {
                       name="mfaRequired"
                       type="checkbox"
                       defaultChecked={integration.settings.mfaRequired === true}
+                      disabled={!canManage}
                     />
                     <label htmlFor={`${integration.id}-mfaRequired`}>MFA required</label>
                   </div>
@@ -181,6 +193,7 @@ export default function IntegrationsPage() {
                       name="ssoEnabled"
                       type="checkbox"
                       defaultChecked={integration.settings.ssoEnabled === true}
+                      disabled={!canManage}
                     />
                     <label htmlFor={`${integration.id}-ssoEnabled`}>SSO enabled</label>
                   </div>
@@ -190,13 +203,14 @@ export default function IntegrationsPage() {
                       id={`${integration.id}-userCount`}
                       name="userCount"
                       defaultValue={String(integration.settings.userCount ?? "")}
+                      disabled={!canManage}
                     />
                   </div>
                 </>
               )}
 
               <div className="inline-actions field-full">
-                <button type="submit" className="button">
+                <button type="submit" className="button" disabled={!canManage}>
                   Save integration
                 </button>
               </div>

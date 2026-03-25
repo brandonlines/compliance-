@@ -2,6 +2,7 @@
 
 import { FormEvent } from "react";
 
+import { AccessNote } from "@/components/access-note";
 import { useAppStore } from "@/components/app-provider";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDate } from "@/lib/format";
@@ -14,7 +15,8 @@ const taskStatusOrder: Record<TaskStatus, number> = {
 };
 
 export default function TasksPage() {
-  const { store, createTask, updateTaskStatus } = useAppStore();
+  const { currentUser, store, createTask, updateTaskStatus } = useAppStore();
+  const canManage = currentUser.role === "admin";
   const tasks = [...store.tasks].sort((left, right) => {
     const statusDelta = taskStatusOrder[left.status] - taskStatusOrder[right.status];
 
@@ -47,51 +49,55 @@ export default function TasksPage() {
 
   return (
     <section className="stack">
+      {!canManage ? <AccessNote /> : null}
+
       <header>
         <p className="eyebrow">Tasks</p>
         <h2 className="page-title">Remediation queue</h2>
         <p className="muted">Track compliance work pulled from failing checks and manual audit prep.</p>
       </header>
 
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Add task</p>
-            <h3>Create a manual follow-up</h3>
+      {canManage ? (
+        <section className="panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Add task</p>
+              <h3>Create a manual follow-up</h3>
+            </div>
           </div>
-        </div>
-        <form onSubmit={handleCreateTask} className="form-grid">
-          <div className="field">
-            <label htmlFor="title">Title</label>
-            <input id="title" name="title" placeholder="Collect latest penetration test letter" required />
-          </div>
-          <div className="field">
-            <label htmlFor="owner">Owner</label>
-            <input id="owner" name="owner" placeholder="Security" required />
-          </div>
-          <div className="field field-full">
-            <label htmlFor="description">Description</label>
-            <textarea id="description" name="description" placeholder="Context for whoever is picking this up." />
-          </div>
-          <div className="field">
-            <label htmlFor="dueDate">Due date</label>
-            <input id="dueDate" name="dueDate" type="date" required />
-          </div>
-          <div className="field">
-            <label htmlFor="priority">Priority</label>
-            <select id="priority" name="priority" defaultValue="medium">
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-          </div>
-          <div className="inline-actions field-full">
-            <button type="submit" className="button">
-              Create task
-            </button>
-          </div>
-        </form>
-      </section>
+          <form onSubmit={handleCreateTask} className="form-grid">
+            <div className="field">
+              <label htmlFor="title">Title</label>
+              <input id="title" name="title" placeholder="Collect latest penetration test letter" required />
+            </div>
+            <div className="field">
+              <label htmlFor="owner">Owner</label>
+              <input id="owner" name="owner" placeholder="Security" required />
+            </div>
+            <div className="field field-full">
+              <label htmlFor="description">Description</label>
+              <textarea id="description" name="description" placeholder="Context for whoever is picking this up." />
+            </div>
+            <div className="field">
+              <label htmlFor="dueDate">Due date</label>
+              <input id="dueDate" name="dueDate" type="date" required />
+            </div>
+            <div className="field">
+              <label htmlFor="priority">Priority</label>
+              <select id="priority" name="priority" defaultValue="medium">
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+            <div className="inline-actions field-full">
+              <button type="submit" className="button">
+                Create task
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
 
       <section className="panel table-wrap">
         <table>
@@ -123,16 +129,20 @@ export default function TasksPage() {
                 </td>
                 <td>{task.sourceType}</td>
                 <td>
-                  <form onSubmit={(event) => handleUpdateTask(task.id, event)} className="inline-actions">
-                    <select name="status" defaultValue={task.status}>
-                      <option value="open">Open</option>
-                      <option value="in_progress">In progress</option>
-                      <option value="done">Done</option>
-                    </select>
-                    <button type="submit" className="button-ghost">
-                      Save
-                    </button>
-                  </form>
+                  {canManage ? (
+                    <form onSubmit={(event) => handleUpdateTask(task.id, event)} className="inline-actions">
+                      <select name="status" defaultValue={task.status}>
+                        <option value="open">Open</option>
+                        <option value="in_progress">In progress</option>
+                        <option value="done">Done</option>
+                      </select>
+                      <button type="submit" className="button-ghost">
+                        Save
+                      </button>
+                    </form>
+                  ) : (
+                    <span className="caption">Admins can update task state</span>
+                  )}
                 </td>
               </tr>
             ))}

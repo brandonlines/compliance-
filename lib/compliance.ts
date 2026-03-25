@@ -410,7 +410,8 @@ export function buildAuditorPacket(store: Store) {
     store.automation.lastEventAt,
     ...store.evidence.map((item) => item.uploadedAt),
     ...store.checkRuns.map((run) => run.ranAt),
-    ...store.tasks.map((task) => task.createdAt)
+    ...store.tasks.map((task) => task.createdAt),
+    ...store.workflowRuns.map((run) => run.ranAt)
   ].filter((value): value is string => Boolean(value));
   const generatedAt = [...timestamps].sort((left, right) => right.localeCompare(left))[0] ?? "2026-03-20T09:00:00.000Z";
 
@@ -450,7 +451,8 @@ export function buildAuditorPacket(store: Store) {
     policies: [...store.policies].sort((left, right) => left.nextReviewDue.localeCompare(right.nextReviewDue)),
     integrations: [...store.integrations].sort((left, right) => left.name.localeCompare(right.name)),
     openTasks: store.tasks.filter((task) => task.status !== "done"),
-    recentChecks: [...latestRuns.values()].sort((left, right) => right.ranAt.localeCompare(left.ranAt))
+    recentChecks: [...latestRuns.values()].sort((left, right) => right.ranAt.localeCompare(left.ranAt)),
+    recentWorkflows: [...store.workflowRuns].sort((left, right) => right.ranAt.localeCompare(left.ranAt)).slice(0, 8)
   };
 }
 

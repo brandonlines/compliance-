@@ -146,6 +146,41 @@ export default function AuditorPage() {
           </div>
         </article>
       </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Workflows</p>
+            <h3>Recent operator runs</h3>
+          </div>
+        </div>
+        <div className="list">
+          {packet.recentWorkflows.length === 0 ? (
+            <div className="item-card">
+              <p className="muted">No workflow runs have been recorded yet.</p>
+            </div>
+          ) : (
+            packet.recentWorkflows.map((run) => (
+              <div key={run.id} className="item-card">
+                <div className="split">
+                  <div>
+                    <h3>{run.title}</h3>
+                    <p className="muted">{run.summary}</p>
+                  </div>
+                  <StatusBadge tone={run.status === "warning" ? "monitoring" : "ready"} label={run.status} />
+                </div>
+                <div className="detail-row">
+                  <span>{run.actorName}</span>
+                  <span>{formatDate(run.ranAt)}</span>
+                  <span>
+                    {run.taskCount} tasks · {run.checkCount} checks · {run.evidenceCount} evidence
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
     </section>
   );
 }

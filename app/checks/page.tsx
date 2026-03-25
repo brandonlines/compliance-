@@ -1,25 +1,29 @@
 "use client";
 
+import { AccessNote } from "@/components/access-note";
 import { useAppStore } from "@/components/app-provider";
 import { StatusBadge } from "@/components/status-badge";
 import { CHECK_LIBRARY, getLatestRunsByCheck } from "@/lib/compliance";
 import { formatDate } from "@/lib/format";
 
 export default function ChecksPage() {
-  const { store, runChecks } = useAppStore();
+  const { currentUser, store, runChecks } = useAppStore();
+  const canManage = currentUser.role === "admin";
   const latestRuns = getLatestRunsByCheck(store);
   const controlsById = new Map(store.controls.map((control) => [control.id, control]));
   const history = [...store.checkRuns].sort((left, right) => right.ranAt.localeCompare(left.ranAt)).slice(0, 12);
 
   return (
     <section className="stack">
+      {!canManage ? <AccessNote /> : null}
+
       <header className="split">
         <div>
           <p className="eyebrow">Checks</p>
           <h2 className="page-title">Continuous monitoring lite</h2>
           <p className="muted">A small check engine that still gives the team useful compliance signals.</p>
         </div>
-        <button type="button" className="button" onClick={runChecks}>
+        <button type="button" className="button" onClick={runChecks} disabled={!canManage}>
           Run all checks
         </button>
       </header>

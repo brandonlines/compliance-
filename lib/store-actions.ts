@@ -1,7 +1,8 @@
 import { AutomationPayload, ingestAutomationPayload } from "@/lib/automation";
 import { runAllChecks } from "@/lib/compliance";
 import { createAutomationSecret, createId, normalizeStore } from "@/lib/store";
-import { Integration, Severity, Store, TaskStatus } from "@/lib/types";
+import { runWorkflowTemplate } from "@/lib/workflows";
+import { Integration, Severity, Store, TaskStatus, WorkflowTemplateId } from "@/lib/types";
 
 export type UploadEvidenceInput = {
   title: string;
@@ -64,6 +65,11 @@ export type StoreAction =
       payload: AutomationPayload;
     }
   | {
+      type: "runWorkflow";
+      templateId: WorkflowTemplateId;
+      actorName: string;
+    }
+  | {
       type: "resetDemo";
     };
 
@@ -114,6 +120,15 @@ function isAutomationPayload(value: unknown): value is AutomationPayload {
   return (
     isRecord(value) &&
     (value.type === "evidence.create" || value.type === "check.report" || value.type === "task.create")
+  );
+}
+
+function isWorkflowTemplateId(value: unknown): value is WorkflowTemplateId {
+  return (
+    value === "quarterly_access_review" ||
+    value === "policy_review_sweep" ||
+    value === "evidence_refresh_sweep" ||
+    value === "control_monitoring_cycle"
   );
 }
 
@@ -195,6 +210,14 @@ export function parseStoreAction(input: unknown): StoreAction | null {
     };
   }
 
+  if (input.type === "runWorkflow") {
+    return {
+      type: "runWorkflow",
+      templateId: input.templateId as WorkflowTemplateId,
+      actorName: asTrimmedString(input.actorName)
+    };
+  }
+
   return null;
 }
 
@@ -257,6 +280,18 @@ export function validateStoreAction(store: Store, action: StoreAction) {
 
   if (action.type === "updateAutomationEnabled") {
     return typeof action.enabled === "boolean" ? null : "Automation enabled must be a boolean.";
+  }
+
+  if (action.type === "runWorkflow") {
+    if (!isWorkflowTemplateId(action.templateId)) {
+      return "Unknown workflow template.";
+    }
+
+    if (!action.actorName) {
+      return "Workflow actor name is required.";
+    }
+
+    return null;
   }
 
   if (!isAutomationPayload(action.payload)) {
@@ -425,7 +460,11 @@ export function applyStoreAction(store: Store, action: Exclude<StoreAction, { ty
           secret: createAutomationSecret()
         }
       })
-    };
+      };
+  }
+
+  if (action.type === "runWorkflow") {
+    return runWorkflowTemplate(store, action.templateId, action.actorName);
   }
 
   const result = ingestAutomationPayload(store, action.payload);

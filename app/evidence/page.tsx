@@ -3,11 +3,13 @@
 import { FormEvent } from "react";
 import Link from "next/link";
 
+import { AccessNote } from "@/components/access-note";
 import { useAppStore } from "@/components/app-provider";
 import { formatDate } from "@/lib/format";
 
 export default function EvidencePage() {
-  const { store, uploadEvidence } = useAppStore();
+  const { currentUser, store, uploadEvidence } = useAppStore();
+  const canManage = currentUser.role === "admin";
   const controlsById = new Map(store.controls.map((control) => [control.id, control]));
   const policies = [...store.policies].sort((left, right) => left.title.localeCompare(right.title));
   const evidence = [...store.evidence].sort((left, right) => right.uploadedAt.localeCompare(left.uploadedAt));
@@ -29,69 +31,73 @@ export default function EvidencePage() {
 
   return (
     <section className="stack">
+      {!canManage ? <AccessNote /> : null}
+
       <header>
         <p className="eyebrow">Evidence</p>
         <h2 className="page-title">Evidence locker</h2>
         <p className="muted">Upload files or log snapshots that prove each control is actually operating.</p>
       </header>
 
-      <section className="panel">
-        <div className="panel-header">
-          <div>
-            <p className="eyebrow">Add evidence</p>
-            <h3>Store a new artifact</h3>
+      {canManage ? (
+        <section className="panel">
+          <div className="panel-header">
+            <div>
+              <p className="eyebrow">Add evidence</p>
+              <h3>Store a new artifact</h3>
+            </div>
+            <p className="caption">Uploads are saved through the backend so the workspace stays shared across sessions.</p>
           </div>
-          <p className="caption">Uploads are saved through the backend so the workspace stays shared across sessions.</p>
-        </div>
-        <form onSubmit={handleSubmit} className="form-grid">
-          <div className="field">
-            <label htmlFor="title">Title</label>
-            <input id="title" name="title" placeholder="Quarterly access review export" required />
-          </div>
-          <div className="field">
-            <label htmlFor="owner">Owner</label>
-            <input id="owner" name="owner" placeholder="IT & Security" required />
-          </div>
-          <div className="field">
-            <label htmlFor="controlId">Mapped control</label>
-            <select id="controlId" name="controlId" required>
-              <option value="">Choose a control</option>
-              {store.controls.map((control) => (
-                <option key={control.id} value={control.id}>
-                  {control.code} - {control.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field">
-            <label htmlFor="policyId">Related policy</label>
-            <select id="policyId" name="policyId">
-              <option value="">Optional</option>
-              {policies.map((policy) => (
-                <option key={policy.id} value={policy.id}>
-                  {policy.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field field-full">
-            <label htmlFor="description">Description</label>
-            <textarea id="description" name="description" placeholder="What this evidence shows and why it matters." />
-          </div>
-          <div className="field field-full">
-            <label htmlFor="file">File upload</label>
-            <input id="file" name="file" type="file" />
-          </div>
-          <div className="inline-actions field-full">
-            <button type="submit" className="button">
-              Save evidence
-            </button>
-            <Link href="/controls" className="button-ghost">
-              Review mapped controls
-            </Link>
-          </div>
-        </form>
-      </section>
+          <form onSubmit={handleSubmit} className="form-grid">
+            <div className="field">
+              <label htmlFor="title">Title</label>
+              <input id="title" name="title" placeholder="Quarterly access review export" required />
+            </div>
+            <div className="field">
+              <label htmlFor="owner">Owner</label>
+              <input id="owner" name="owner" placeholder="IT & Security" required />
+            </div>
+            <div className="field">
+              <label htmlFor="controlId">Mapped control</label>
+              <select id="controlId" name="controlId" required>
+                <option value="">Choose a control</option>
+                {store.controls.map((control) => (
+                  <option key={control.id} value={control.id}>
+                    {control.code} - {control.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor="policyId">Related policy</label>
+              <select id="policyId" name="policyId">
+                <option value="">Optional</option>
+                {policies.map((policy) => (
+                  <option key={policy.id} value={policy.id}>
+                    {policy.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field field-full">
+              <label htmlFor="description">Description</label>
+              <textarea id="description" name="description" placeholder="What this evidence shows and why it matters." />
+            </div>
+            <div className="field field-full">
+              <label htmlFor="file">File upload</label>
+              <input id="file" name="file" type="file" />
+            </div>
+            <div className="inline-actions field-full">
+              <button type="submit" className="button">
+                Save evidence
+              </button>
+              <Link href="/controls" className="button-ghost">
+                Review mapped controls
+              </Link>
+            </div>
+          </form>
+        </section>
+      ) : null}
 
       <section className="panel table-wrap">
         <div className="panel-header">

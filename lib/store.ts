@@ -56,7 +56,8 @@ export function normalizeStore(input: Store | null | undefined) {
       ...defaults.automation,
       ...input.automation,
       events: input.automation?.events ?? defaults.automation.events
-    }
+    },
+    workflowRuns: input.workflowRuns ?? defaults.workflowRuns
   };
 }
 

@@ -5,6 +5,12 @@ export type CheckStatus = "pass" | "fail";
 export type AutomationEventType = "evidence.create" | "check.report" | "task.create";
 export type AutomationEventStatus = "accepted" | "rejected";
 export type AppUserRole = "admin" | "auditor" | "viewer";
+export type WorkflowTemplateId =
+  | "quarterly_access_review"
+  | "policy_review_sweep"
+  | "evidence_refresh_sweep"
+  | "control_monitoring_cycle";
+export type WorkflowRunStatus = "success" | "warning";
 
 export interface AppUser {
   id: string;
@@ -71,7 +77,7 @@ export interface Task {
   dueDate: string;
   status: TaskStatus;
   priority: Severity;
-  sourceType: "check" | "manual" | "automation";
+  sourceType: "check" | "manual" | "automation" | "workflow";
   sourceId?: string;
   createdAt: string;
   completedAt?: string;
@@ -127,6 +133,19 @@ export interface AutomationConfig {
   events: AutomationEvent[];
 }
 
+export interface WorkflowRun {
+  id: string;
+  templateId: WorkflowTemplateId;
+  title: string;
+  summary: string;
+  status: WorkflowRunStatus;
+  actorName: string;
+  ranAt: string;
+  taskCount: number;
+  evidenceCount: number;
+  checkCount: number;
+}
+
 export interface Store {
   organization: Organization;
   controls: Control[];
@@ -136,4 +155,5 @@ export interface Store {
   integrations: Integration[];
   checkRuns: CheckRun[];
   automation: AutomationConfig;
+  workflowRuns: WorkflowRun[];
 }

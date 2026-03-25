@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { AccessNote } from "@/components/access-note";
 import { useAppStore } from "@/components/app-provider";
 import { MetricCard } from "@/components/metric-card";
 import { StatusBadge } from "@/components/status-badge";
@@ -14,7 +15,8 @@ import {
 import { formatDate } from "@/lib/format";
 
 export default function DashboardPage() {
-  const { store, runChecks } = useAppStore();
+  const { currentUser, store, runChecks } = useAppStore();
+  const canManage = currentUser.role === "admin";
   const metrics = getDashboardMetrics(store);
   const latestRuns = [...getLatestRunsByCheck(store).values()]
     .sort((left, right) => right.ranAt.localeCompare(left.ranAt))
@@ -30,6 +32,8 @@ export default function DashboardPage() {
 
   return (
     <>
+      {!canManage ? <AccessNote /> : null}
+
       <section className="hero">
         <div className="hero-card">
           <p className="eyebrow">SOC 2 workspace</p>
@@ -44,7 +48,7 @@ export default function DashboardPage() {
             <StatusBadge tone="ready" label={store.organization.workspaceMode} />
           </div>
           <div className="hero-actions">
-            <button type="button" className="button" onClick={runChecks}>
+            <button type="button" className="button" onClick={runChecks} disabled={!canManage}>
               Run compliance checks
             </button>
             <Link href="/auditor" className="button-ghost">

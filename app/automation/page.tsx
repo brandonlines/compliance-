@@ -2,10 +2,13 @@
 
 import { FormEvent, useMemo, useState } from "react";
 
+import { AccessNote } from "@/components/access-note";
 import { useAppStore } from "@/components/app-provider";
 import { StatusBadge } from "@/components/status-badge";
 import { AutomationPayload } from "@/lib/automation";
 import { formatDate } from "@/lib/format";
+import { WORKFLOW_LIBRARY } from "@/lib/workflows";
+import { WorkflowTemplateId } from "@/lib/types";
 
 function buildExamplePayloads(secret: string) {
   return {
@@ -43,11 +46,25 @@ function buildExamplePayloads(secret: string) {
 }
 
 export default function AutomationPage() {
-  const { store, rotateAutomationSecret, updateAutomationEnabled, applyAutomationPayload, resetDemo } = useAppStore();
+  const { currentUser, store, rotateAutomationSecret, updateAutomationEnabled, applyAutomationPayload, resetDemo, runWorkflow } =
+    useAppStore();
+  const canManage = currentUser.role === "admin";
   const [payloadInput, setPayloadInput] = useState("");
   const [resultMessage, setResultMessage] = useState<string | null>(null);
   const [resultTone, setResultTone] = useState<"ready" | "attention">("ready");
   const events = [...store.automation.events].sort((left, right) => right.receivedAt.localeCompare(left.receivedAt));
+  const workflowRuns = [...store.workflowRuns].sort((left, right) => right.ranAt.localeCompare(left.ranAt));
+  const latestWorkflowByTemplate = useMemo(() => {
+    const map = new Map<WorkflowTemplateId, (typeof workflowRuns)[number]>();
+
+    for (const run of workflowRuns) {
+      if (!map.has(run.templateId)) {
+        map.set(run.templateId, run);
+      }
+    }
+
+    return map;
+  }, [workflowRuns]);
   const examples = useMemo(() => buildExamplePayloads(store.automation.secret), [store.automation.secret]);
 
   function loadExample(key: keyof typeof examples) {
@@ -71,19 +88,32 @@ export default function AutomationPage() {
       const result = await applyAutomationPayload(payload as AutomationPayload);
       setResultTone(result.ok ? "ready" : "attention");
       setResultMessage(result.summary);
-    } catch {
+    } catch (error) {
       setResultTone("attention");
-      setResultMessage("Payload must be valid JSON.");
+      setResultMessage(error instanceof Error ? error.message : "Payload must be valid JSON.");
+    }
+  }
+
+  async function handleRunWorkflow(templateId: WorkflowTemplateId) {
+    try {
+      const result = await runWorkflow(templateId);
+      setResultTone(result.ok ? "ready" : "attention");
+      setResultMessage(result.summary);
+    } catch (error) {
+      setResultTone("attention");
+      setResultMessage(error instanceof Error ? error.message : "Workflow execution failed.");
     }
   }
 
   return (
     <section className="stack">
+      {!canManage ? <AccessNote /> : null}
+
       <header className="split">
         <div>
           <p className="eyebrow">Automation</p>
           <h2 className="page-title">Automation studio</h2>
-          <p className="muted">Apply automation payloads against the shared backend so the whole workspace updates together.</p>
+          <p className="muted">Run operator workflows or apply raw automation payloads against the shared backend workspace.</p>
         </div>
         <div className="pill-row">
           <StatusBadge tone={store.automation.enabled ? "ready" : "attention"} label={store.automation.enabled ? "enabled" : "disabled"} />
@@ -107,7 +137,7 @@ export default function AutomationPage() {
           <p className="eyebrow">Secret</p>
           <h3 className="mono">{store.automation.secret}</h3>
           <p className="muted">The examples below include this token so you can mirror a signed integration flow.</p>
-          <button type="button" className="button section-gap" onClick={rotateAutomationSecret}>
+          <button type="button" className="button section-gap" onClick={rotateAutomationSecret} disabled={!canManage}>
             Rotate secret
           </button>
         </article>
@@ -122,10 +152,58 @@ export default function AutomationPage() {
               type="checkbox"
               checked={store.automation.enabled}
               onChange={(event) => updateAutomationEnabled(event.currentTarget.checked)}
+              disabled={!canManage}
             />
             <span>Accept automation events</span>
           </label>
         </article>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Workflow library</p>
+            <h3>Operator runbooks</h3>
+          </div>
+          <StatusBadge
+            tone={workflowRuns.some((run) => run.status === "warning") ? "monitoring" : "ready"}
+            label={`${workflowRuns.length} runs`}
+          />
+        </div>
+        <div className="grid-2">
+          {WORKFLOW_LIBRARY.map((workflow) => {
+            const latestRun = latestWorkflowByTemplate.get(workflow.id);
+
+            return (
+              <article key={workflow.id} className="item-card">
+                <div className="split">
+                  <div>
+                    <p className="eyebrow">{workflow.cadence}</p>
+                    <h3>{workflow.title}</h3>
+                  </div>
+                  <StatusBadge tone={latestRun?.status === "warning" ? "monitoring" : "ready"} label={latestRun ? latestRun.status : "ready"} />
+                </div>
+                <p className="muted">{workflow.description}</p>
+                <div className="list section-gap">
+                  {workflow.steps.map((step) => (
+                    <div key={step} className="item-card">
+                      <p className="muted">{step}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="detail-row">
+                  <span>{latestRun ? `Last run ${formatDate(latestRun.ranAt)}` : "Not run yet"}</span>
+                  <span>{latestRun ? latestRun.summary : "No execution history yet"}</span>
+                </div>
+                <div className="inline-actions section-gap">
+                  <button type="button" className="button" onClick={() => handleRunWorkflow(workflow.id)} disabled={!canManage}>
+                    Run workflow
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </section>
 
       <section className="grid-3">
@@ -183,13 +261,14 @@ export default function AutomationPage() {
                 value={payloadInput}
                 onChange={(event) => setPayloadInput(event.currentTarget.value)}
                 placeholder='{"type":"check.report", ...}'
+                disabled={!canManage}
               />
             </div>
             <div className="inline-actions">
-              <button type="submit" className="button">
+              <button type="submit" className="button" disabled={!canManage}>
                 Apply payload
               </button>
-              <button type="button" className="button-ghost" onClick={resetDemo}>
+              <button type="button" className="button-ghost" onClick={resetDemo} disabled={!canManage}>
                 Reset demo data
               </button>
             </div>
@@ -206,21 +285,57 @@ export default function AutomationPage() {
           <div className="panel-header">
             <div>
               <p className="eyebrow">How to use it</p>
-              <h3>Static-site workflow</h3>
+              <h3>Operator workflow</h3>
             </div>
           </div>
           <div className="list">
             <div className="item-card">
-              <p className="muted">1. Load one of the example payloads or paste your own JSON into the simulator.</p>
+              <p className="muted">1. Run a workflow template when you want guided operations, or load a raw payload when you need lower-level testing.</p>
             </div>
             <div className="item-card">
-              <p className="muted">2. Apply the payload and watch evidence, checks, tasks, and the event log update instantly.</p>
+              <p className="muted">2. Watch tasks, checks, and automation history update together as the workflow progresses.</p>
             </div>
             <div className="item-card">
               <p className="muted">3. Refresh the page to confirm the server-backed state survives across sessions.</p>
             </div>
           </div>
         </article>
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Workflow runs</p>
+            <h3>Recent operator activity</h3>
+          </div>
+        </div>
+        <div className="list">
+          {workflowRuns.length === 0 ? (
+            <div className="item-card">
+              <p className="muted">No workflows have been executed yet.</p>
+            </div>
+          ) : (
+            workflowRuns.map((run) => (
+              <div key={run.id} className="item-card">
+                <div className="split">
+                  <div>
+                    <p className="eyebrow">{run.templateId}</p>
+                    <h3>{run.title}</h3>
+                  </div>
+                  <StatusBadge tone={run.status === "warning" ? "monitoring" : "ready"} label={run.status} />
+                </div>
+                <p className="muted">{run.summary}</p>
+                <div className="detail-row">
+                  <span>Ran by {run.actorName}</span>
+                  <span>{formatDate(run.ranAt)}</span>
+                  <span>
+                    {run.taskCount} tasks · {run.checkCount} checks · {run.evidenceCount} evidence
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </section>
 
       <section className="panel">
