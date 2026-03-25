@@ -37,10 +37,10 @@ export default function DashboardPage() {
       <section className="hero">
         <div className="hero-card">
           <p className="eyebrow">SOC 2 workspace</p>
-          <h2>Operational compliance work in a Postgres-backed app.</h2>
+          <h2>Operational compliance work in a shared workspace.</h2>
           <p className="muted">
             Track controls, keep evidence fresh, run lightweight checks, and package the program for audit review with
-            shared server-side persistence.
+            shared operational state.
           </p>
           <div className="hero-meta">
             <StatusBadge tone="monitoring" label={store.organization.framework} />
@@ -80,7 +80,7 @@ export default function DashboardPage() {
             </div>
             <div className="item-card">
               <p className="eyebrow">Persistence</p>
-              <p className="muted">Your changes are saved in Postgres, so teammates and test sessions share the same state.</p>
+              <p className="muted">Your changes are saved for this environment, so test sessions can pick up where you left off.</p>
             </div>
           </div>
         </aside>

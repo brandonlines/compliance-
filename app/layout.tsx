@@ -10,7 +10,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Trust Console",
-  description: "A server-backed compliance workspace with Postgres persistence and seeded dev auth."
+  description: "A compliance workspace with shared operational state and seeded dev auth."
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {

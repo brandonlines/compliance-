@@ -2,6 +2,7 @@
 out
 node_modules
 data/store.json
+data/local-testing-store.json
 data/uploads
 .DS_Store
 tsconfig.tsbuildinfo

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:local": "TRUST_CONSOLE_LOCAL_MODE=true next dev",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",

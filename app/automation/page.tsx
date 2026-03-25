@@ -296,7 +296,7 @@ export default function AutomationPage() {
               <p className="muted">2. Watch tasks, checks, and automation history update together as the workflow progresses.</p>
             </div>
             <div className="item-card">
-              <p className="muted">3. Refresh the page to confirm the server-backed state survives across sessions.</p>
+              <p className="muted">3. Refresh the page to confirm the workspace state survives across sessions.</p>
             </div>
           </div>
         </article>

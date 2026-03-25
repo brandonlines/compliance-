@@ -22,7 +22,7 @@ export function Shell({ children, currentUser }: { children: ReactNode; currentU
         <div className="brand-block">
           <p className="kicker">Trust Console</p>
           <h1>Operational compliance workspace</h1>
-          <p className="muted">A server-backed workspace for controls, evidence, automation signals, and audit readiness.</p>
+          <p className="muted">A compliance workspace for controls, evidence, automation signals, and audit readiness.</p>
         </div>
         <div className="item-card">
           <p className="eyebrow">Dev auth</p>

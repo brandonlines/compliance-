@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { applyStoreAction } from "@/lib/store-actions";
+import { DEFAULT_WORKSPACE_ID } from "@/lib/workspace-constants";
 import {
-  DEFAULT_WORKSPACE_ID,
   getWorkspaceStore,
   listDevUsers,
   resetWorkspaceStore,
