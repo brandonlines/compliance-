@@ -25,11 +25,11 @@ export default function TasksPage() {
     return left.dueDate.localeCompare(right.dueDate);
   });
 
-  function handleCreateTask(event: FormEvent<HTMLFormElement>) {
+  async function handleCreateTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
-    createTask({
+    await createTask({
       title: String(data.get("title") ?? "").trim(),
       description: String(data.get("description") ?? "").trim(),
       owner: String(data.get("owner") ?? "").trim(),
@@ -39,10 +39,10 @@ export default function TasksPage() {
     form.reset();
   }
 
-  function handleUpdateTask(taskId: string, event: FormEvent<HTMLFormElement>) {
+  async function handleUpdateTask(taskId: string, event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    updateTaskStatus(taskId, String(data.get("status") ?? "open") as TaskStatus);
+    await updateTaskStatus(taskId, String(data.get("status") ?? "open") as TaskStatus);
   }
 
   return (

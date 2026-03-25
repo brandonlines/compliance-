@@ -33,15 +33,15 @@ export default function DashboardPage() {
       <section className="hero">
         <div className="hero-card">
           <p className="eyebrow">SOC 2 workspace</p>
-          <h2>Portable compliance operations in a single browser-based app.</h2>
+          <h2>Operational compliance work in a Postgres-backed app.</h2>
           <p className="muted">
             Track controls, keep evidence fresh, run lightweight checks, and package the program for audit review with
-            no backend dependency.
+            shared server-side persistence.
           </p>
           <div className="hero-meta">
             <StatusBadge tone="monitoring" label={store.organization.framework} />
             <StatusBadge tone="ready" label={store.organization.auditWindow} />
-            <StatusBadge tone="ready" label="Static export ready" />
+            <StatusBadge tone="ready" label={store.organization.workspaceMode} />
           </div>
           <div className="hero-actions">
             <button type="button" className="button" onClick={runChecks}>
@@ -76,7 +76,7 @@ export default function DashboardPage() {
             </div>
             <div className="item-card">
               <p className="eyebrow">Persistence</p>
-              <p className="muted">Your changes are stored in this browser, so local dev and static hosting behave the same.</p>
+              <p className="muted">Your changes are saved in Postgres, so teammates and test sessions share the same state.</p>
             </div>
           </div>
         </aside>

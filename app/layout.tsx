@@ -3,20 +3,34 @@ import { ReactNode } from "react";
 
 import { AppProvider } from "@/components/app-provider";
 import { Shell } from "@/components/shell";
+import { getCurrentUser } from "@/lib/auth";
+import { getWorkspaceStore } from "@/lib/workspace";
 
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Trust Console",
-  description: "A static compliance workspace demo with local browser persistence."
+  description: "A server-backed compliance workspace with Postgres persistence and seeded dev auth."
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    return (
+      <html lang="en">
+        <body>{children}</body>
+      </html>
+    );
+  }
+
+  const store = await getWorkspaceStore(currentUser.workspaceId);
+
   return (
     <html lang="en">
       <body>
-        <AppProvider>
-          <Shell>{children}</Shell>
+        <AppProvider currentUser={currentUser} initialStore={store}>
+          <Shell currentUser={currentUser}>{children}</Shell>
         </AppProvider>
       </body>
     </html>

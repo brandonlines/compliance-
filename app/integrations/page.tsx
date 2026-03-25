@@ -12,14 +12,14 @@ export default function IntegrationsPage() {
   const { store, saveIntegration } = useAppStore();
   const integrations = [...store.integrations].sort((left, right) => left.name.localeCompare(right.name));
 
-  function handleSubmit(integrationId: string, event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(integrationId: string, event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const owner = String(data.get("owner") ?? "").trim();
     const connected = data.get("connected") === "on";
 
     if (integrationId === "integration_github") {
-      saveIntegration({
+      await saveIntegration({
         integrationId,
         owner,
         connected,
@@ -33,7 +33,7 @@ export default function IntegrationsPage() {
     }
 
     if (integrationId === "integration_aws") {
-      saveIntegration({
+      await saveIntegration({
         integrationId,
         owner,
         connected,
@@ -46,7 +46,7 @@ export default function IntegrationsPage() {
       return;
     }
 
-    saveIntegration({
+    await saveIntegration({
       integrationId,
       owner,
       connected,

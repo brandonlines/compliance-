@@ -1,240 +1,209 @@
 "use client";
 
-import { startTransition, createContext, Dispatch, ReactNode, SetStateAction, useContext, useEffect, useMemo, useState } from "react";
+import { startTransition, createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
 
-import { buildSeedStore } from "@/data/seed";
-import { ingestAutomationPayload, AutomationPayload } from "@/lib/automation";
-import { fileToDataUrl } from "@/lib/browser";
-import { runAllChecks } from "@/lib/compliance";
+import { AutomationPayload } from "@/lib/automation";
+import { normalizeStore } from "@/lib/store";
 import {
-  createAutomationSecret,
-  createId,
-  normalizeStore,
-  readStoredStore,
-  writeStoredStore
-} from "@/lib/store";
-import { Integration, Severity, Store, TaskStatus } from "@/lib/types";
+  CreateTaskInput,
+  SaveIntegrationInput,
+  StoreAction,
+  UploadEvidenceInput
+} from "@/lib/store-actions";
+import { AppUser, Store, TaskStatus } from "@/lib/types";
 
-type UploadEvidenceInput = {
-  title: string;
-  description: string;
-  owner: string;
-  controlId: string;
-  policyId?: string;
+type UploadEvidenceInputWithFile = UploadEvidenceInput & {
   file?: File | null;
 };
 
-type CreateTaskInput = {
-  title: string;
-  description: string;
-  owner: string;
-  dueDate: string;
-  priority: Severity;
-};
-
-type SaveIntegrationInput = {
-  integrationId: string;
-  owner: string;
-  connected: boolean;
-  settings: Record<string, boolean | string>;
+type StoreMutationResponse = {
+  store: Store;
+  ok?: boolean;
+  summary?: string;
 };
 
 type AppContextValue = {
+  currentUser: AppUser;
   store: Store;
-  runChecks: () => void;
-  uploadEvidence: (input: UploadEvidenceInput) => Promise<void>;
-  reviewPolicy: (policyId: string, reviewDate: string) => void;
-  saveIntegration: (input: SaveIntegrationInput) => void;
-  updateTaskStatus: (taskId: string, status: TaskStatus) => void;
-  createTask: (input: CreateTaskInput) => void;
-  updateAutomationEnabled: (enabled: boolean) => void;
-  rotateAutomationSecret: () => void;
-  applyAutomationPayload: (payload: AutomationPayload) => { ok: boolean; summary: string };
-  resetDemo: () => void;
+  runChecks: () => Promise<void>;
+  uploadEvidence: (input: UploadEvidenceInputWithFile) => Promise<void>;
+  reviewPolicy: (policyId: string, reviewDate: string) => Promise<void>;
+  saveIntegration: (input: SaveIntegrationInput) => Promise<void>;
+  updateTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
+  createTask: (input: CreateTaskInput) => Promise<void>;
+  updateAutomationEnabled: (enabled: boolean) => Promise<void>;
+  rotateAutomationSecret: () => Promise<void>;
+  applyAutomationPayload: (payload: AutomationPayload) => Promise<{ ok: boolean; summary: string }>;
+  resetDemo: () => Promise<void>;
 };
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-function formatLocalDate(value: Date) {
-  return [
-    value.getFullYear(),
-    String(value.getMonth() + 1).padStart(2, "0"),
-    String(value.getDate()).padStart(2, "0")
-  ].join("-");
-}
-
-function updateStoreState(setStore: Dispatch<SetStateAction<Store>>, updater: (store: Store) => Store) {
-  startTransition(() => {
-    setStore((current) => normalizeStore(updater(current)));
+async function submitStoreAction(action: StoreAction) {
+  const response = await fetch("/api/store/action", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(action)
   });
+
+  if (!response.ok) {
+    throw new Error("Failed to update workspace state.");
+  }
+
+  return (await response.json()) as StoreMutationResponse;
 }
 
-function updateIntegrationSettings(integration: Integration, input: SaveIntegrationInput) {
-  return {
-    ...integration,
-    connected: input.connected,
-    owner: input.owner || integration.owner,
-    lastSync: new Date().toISOString(),
-    settings: {
-      ...integration.settings,
-      ...input.settings
-    }
-  };
+async function submitEvidence(input: UploadEvidenceInputWithFile) {
+  const data = new FormData();
+  data.set("title", input.title);
+  data.set("description", input.description);
+  data.set("owner", input.owner);
+  data.set("controlId", input.controlId);
+
+  if (input.policyId) {
+    data.set("policyId", input.policyId);
+  }
+
+  if (input.file && input.file.size > 0) {
+    data.set("file", input.file);
+  }
+
+  const response = await fetch("/api/store/evidence", {
+    method: "POST",
+    body: data
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to upload evidence.");
+  }
+
+  return (await response.json()) as StoreMutationResponse;
 }
 
-export function AppProvider({ children }: { children: ReactNode }) {
-  const [store, setStore] = useState<Store>(buildSeedStore());
-  const [loaded, setLoaded] = useState(false);
+export function AppProvider({
+  children,
+  currentUser,
+  initialStore
+}: {
+  children: ReactNode;
+  currentUser: AppUser;
+  initialStore: Store;
+}) {
+  const [store, setStore] = useState<Store>(initialStore);
 
   useEffect(() => {
-    setStore(readStoredStore());
-    setLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (!loaded) {
-      return;
-    }
-
-    writeStoredStore(store);
-  }, [loaded, store]);
+    setStore(initialStore);
+  }, [initialStore]);
 
   const value = useMemo<AppContextValue>(
     () => ({
+      currentUser,
       store,
-      runChecks() {
-        updateStoreState(setStore, (current) => runAllChecks(current));
+      async runChecks() {
+        const result = await submitStoreAction({
+          type: "runChecks"
+        });
+
+        startTransition(() => {
+          setStore(normalizeStore(result.store));
+        });
       },
       async uploadEvidence(input) {
-        let fileDataUrl: string | undefined;
-        let fileName: string | undefined;
-        let originalName: string | undefined;
-        let mimeType: string | undefined;
-        let kind: "upload" | "snapshot" = "snapshot";
+        const result = await submitEvidence(input);
 
-        if (input.file && input.file.size > 0) {
-          fileDataUrl = await fileToDataUrl(input.file);
-          fileName = input.file.name;
-          originalName = input.file.name;
-          mimeType = input.file.type || "application/octet-stream";
-          kind = "upload";
-        }
-
-        updateStoreState(setStore, (current) => ({
-          ...current,
-          evidence: [
-            {
-              id: createId("evidence"),
-              title: input.title,
-              description: input.description,
-              owner: input.owner,
-              kind,
-              source: "manual",
-              controlId: input.controlId,
-              policyId: input.policyId || undefined,
-              uploadedAt: new Date().toISOString(),
-              fileName,
-              originalName,
-              mimeType,
-              fileDataUrl
-            },
-            ...current.evidence
-          ]
-        }));
-      },
-      reviewPolicy(policyId, reviewDate) {
-        const nextReview = new Date(`${reviewDate}T12:00:00`);
-        nextReview.setFullYear(nextReview.getFullYear() + 1);
-
-        updateStoreState(setStore, (current) => ({
-          ...current,
-          policies: current.policies.map((policy) =>
-            policy.id === policyId
-              ? {
-                  ...policy,
-                  lastReviewed: reviewDate,
-                  nextReviewDue: formatLocalDate(nextReview)
-                }
-              : policy
-          )
-        }));
-      },
-      saveIntegration(input) {
-        updateStoreState(setStore, (current) => ({
-          ...current,
-          integrations: current.integrations.map((integration) =>
-            integration.id === input.integrationId ? updateIntegrationSettings(integration, input) : integration
-          )
-        }));
-      },
-      updateTaskStatus(taskId, status) {
-        updateStoreState(setStore, (current) => ({
-          ...current,
-          tasks: current.tasks.map((task) =>
-            task.id === taskId
-              ? {
-                  ...task,
-                  status,
-                  completedAt: status === "done" ? new Date().toISOString() : undefined
-                }
-              : task
-          )
-        }));
-      },
-      createTask(input) {
-        updateStoreState(setStore, (current) => ({
-          ...current,
-          tasks: [
-            {
-              id: createId("task"),
-              title: input.title,
-              description: input.description,
-              owner: input.owner,
-              dueDate: input.dueDate,
-              status: "open",
-              priority: input.priority,
-              sourceType: "manual",
-              createdAt: new Date().toISOString()
-            },
-            ...current.tasks
-          ]
-        }));
-      },
-      updateAutomationEnabled(enabled) {
-        updateStoreState(setStore, (current) => ({
-          ...current,
-          automation: {
-            ...current.automation,
-            enabled
-          }
-        }));
-      },
-      rotateAutomationSecret() {
-        updateStoreState(setStore, (current) => ({
-          ...current,
-          automation: {
-            ...current.automation,
-            secret: createAutomationSecret()
-          }
-        }));
-      },
-      applyAutomationPayload(payload) {
-        const ingested = ingestAutomationPayload(store, payload);
         startTransition(() => {
-          setStore(normalizeStore(ingested.store));
+          setStore(normalizeStore(result.store));
         });
+      },
+      async reviewPolicy(policyId, reviewDate) {
+        const result = await submitStoreAction({
+          type: "reviewPolicy",
+          policyId,
+          reviewDate
+        });
+
+        startTransition(() => {
+          setStore(normalizeStore(result.store));
+        });
+      },
+      async saveIntegration(input) {
+        const result = await submitStoreAction({
+          type: "saveIntegration",
+          input
+        });
+
+        startTransition(() => {
+          setStore(normalizeStore(result.store));
+        });
+      },
+      async updateTaskStatus(taskId, status) {
+        const result = await submitStoreAction({
+          type: "updateTaskStatus",
+          taskId,
+          status
+        });
+
+        startTransition(() => {
+          setStore(normalizeStore(result.store));
+        });
+      },
+      async createTask(input) {
+        const result = await submitStoreAction({
+          type: "createTask",
+          input
+        });
+
+        startTransition(() => {
+          setStore(normalizeStore(result.store));
+        });
+      },
+      async updateAutomationEnabled(enabled) {
+        const result = await submitStoreAction({
+          type: "updateAutomationEnabled",
+          enabled
+        });
+
+        startTransition(() => {
+          setStore(normalizeStore(result.store));
+        });
+      },
+      async rotateAutomationSecret() {
+        const result = await submitStoreAction({
+          type: "rotateAutomationSecret"
+        });
+
+        startTransition(() => {
+          setStore(normalizeStore(result.store));
+        });
+      },
+      async applyAutomationPayload(payload) {
+        const result = await submitStoreAction({
+          type: "applyAutomationPayload",
+          payload
+        });
+
+        startTransition(() => {
+          setStore(normalizeStore(result.store));
+        });
+
         return {
-          ok: ingested.ok,
-          summary: ingested.summary
+          ok: result.ok ?? true,
+          summary: result.summary ?? "Automation event accepted."
         };
       },
-      resetDemo() {
+      async resetDemo() {
+        const result = await submitStoreAction({
+          type: "resetDemo"
+        });
+
         startTransition(() => {
-          setStore(buildSeedStore());
+          setStore(normalizeStore(result.store));
         });
       }
     }),
-    [store]
+    [currentUser, store]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

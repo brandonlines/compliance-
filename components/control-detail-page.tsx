@@ -20,7 +20,7 @@ export function ControlDetailPage({ id }: { id: string }) {
         </Link>
         <section className="panel">
           <h2 className="page-title">Control not found</h2>
-          <p className="muted">This exported demo only includes the seeded control set.</p>
+          <p className="muted">This workspace does not have a control with that identifier.</p>
         </section>
       </section>
     );

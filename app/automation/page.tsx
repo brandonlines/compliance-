@@ -55,7 +55,7 @@ export default function AutomationPage() {
     setResultMessage(null);
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     try {
@@ -68,7 +68,7 @@ export default function AutomationPage() {
       }
 
       const { secret, ...payload } = parsed;
-      const result = applyAutomationPayload(payload as AutomationPayload);
+      const result = await applyAutomationPayload(payload as AutomationPayload);
       setResultTone(result.ok ? "ready" : "attention");
       setResultMessage(result.summary);
     } catch {
@@ -83,10 +83,7 @@ export default function AutomationPage() {
         <div>
           <p className="eyebrow">Automation</p>
           <h2 className="page-title">Automation studio</h2>
-          <p className="muted">
-            This static build simulates inbound automation locally in the browser, so the exported site behaves the same
-            way as local dev.
-          </p>
+          <p className="muted">Apply automation payloads against the shared backend so the whole workspace updates together.</p>
         </div>
         <div className="pill-row">
           <StatusBadge tone={store.automation.enabled ? "ready" : "attention"} label={store.automation.enabled ? "enabled" : "disabled"} />
@@ -100,8 +97,8 @@ export default function AutomationPage() {
       <section className="grid-3">
         <article className="panel">
           <p className="eyebrow">Mode</p>
-          <h3>Browser-local event intake</h3>
-          <p className="muted">Paste JSON payloads below to simulate automations without relying on a backend route.</p>
+          <h3>Server-backed event intake</h3>
+          <p className="muted">Paste JSON payloads below to exercise the same backend persistence used by the rest of the app.</p>
           <div className="detail-row">
             <span>Last event {formatDate(store.automation.lastEventAt)}</span>
           </div>
@@ -220,7 +217,7 @@ export default function AutomationPage() {
               <p className="muted">2. Apply the payload and watch evidence, checks, tasks, and the event log update instantly.</p>
             </div>
             <div className="item-card">
-              <p className="muted">3. Refresh the page to confirm the browser-persisted state survives without a backend.</p>
+              <p className="muted">3. Refresh the page to confirm the server-backed state survives across sessions.</p>
             </div>
           </div>
         </article>

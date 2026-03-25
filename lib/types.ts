@@ -4,6 +4,15 @@ export type TaskStatus = "open" | "in_progress" | "done";
 export type CheckStatus = "pass" | "fail";
 export type AutomationEventType = "evidence.create" | "check.report" | "task.create";
 export type AutomationEventStatus = "accepted" | "rejected";
+export type AppUserRole = "admin" | "auditor" | "viewer";
+
+export interface AppUser {
+  id: string;
+  email: string;
+  name: string;
+  role: AppUserRole;
+  workspaceId: string;
+}
 
 export interface Organization {
   id: string;

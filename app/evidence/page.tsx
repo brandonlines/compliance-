@@ -41,7 +41,7 @@ export default function EvidencePage() {
             <p className="eyebrow">Add evidence</p>
             <h3>Store a new artifact</h3>
           </div>
-          <p className="caption">Uploads stay in this browser so the exported site works like local dev.</p>
+          <p className="caption">Uploads are saved through the backend so the workspace stays shared across sessions.</p>
         </div>
         <form onSubmit={handleSubmit} className="form-grid">
           <div className="field">

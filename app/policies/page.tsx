@@ -11,13 +11,13 @@ export default function PoliciesPage() {
   const { store, reviewPolicy } = useAppStore();
   const policies = [...store.policies].sort((left, right) => left.nextReviewDue.localeCompare(right.nextReviewDue));
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
     const policyId = String(data.get("policyId") ?? "");
     const reviewDate = String(data.get("reviewDate") ?? "").trim() || new Date().toISOString().slice(0, 10);
-    reviewPolicy(policyId, reviewDate);
+    await reviewPolicy(policyId, reviewDate);
     form.reset();
   }
 
